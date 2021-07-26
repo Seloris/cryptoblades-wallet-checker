@@ -2,11 +2,14 @@
   "name": "node-starter",
   "version": "0.0.0",
   "scripts": {
-    "start":"node src/index.js",
+    "start": "node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "web3": "^1.4.0",
-    "ts-loader": "^9.2.4"
+    "ts-loader": "^9.2.4",
+    "web3": "^1.4.0"
+  },
+  "devDependencies": {
+    "luxon": "^2.0.1"
   }
 }
