@@ -12,7 +12,7 @@ const {
   getCharacterLvl,
 } = require('./web3')
 
-const { weiToSkill } = require('./utils')
+const { weiToSkill, toFrenchDateTime } = require('./utils')
 
 const steps = {
   2: 16,
@@ -72,10 +72,6 @@ const getXpRequireForNextStep = (charLevel, charExp = 0) => {
 }
 
 const getData = async (addresses) => {
-  let sumStaked = 0
-  let sumUnclaimed = 0
-  let sumInGame = 0
-  let sumInWallet = 0
   return await Promise.all(
     addresses.map(async (wallet) => {
       // staked
@@ -123,11 +119,6 @@ const getData = async (addresses) => {
       const inWallet =
         weiToSkill(await getTotalSkillOwnedBy(wallet)) - inGame - unclaimed
 
-      sumStaked += staked + stakedRewards
-      sumUnclaimed += unclaimed
-      sumInGame += inGame
-      sumInWallet += inWallet
-
       return {
         address: wallet,
         unclaimed,
@@ -148,15 +139,16 @@ const getPrintableChar = (char) => {
 
   const xpMsg =
     xpLeft <= 0
-      ? `Lv.${xpRequiredForNextStep.nextLevel} available !!`
-      : `Lv.${xpRequiredForNextStep.nextLevel} -> missing ${xpLeft}`
+      ? `Lv.${char.xpRequiredForNextStep.nextLevel} available !!`
+      : `Lv.${char.xpRequiredForNextStep.nextLevel} -> missing ${xpLeft}`
 
-  return `${char.stamina}/200 STA full at ${toFrenchDateTime(
+  return `**${char.stamina}/200** STA ${toFrenchDateTime(
     char.staminaFullAt
-  )} || Lv.${char.level} || ${xpMsg}`
+  )} **Lv.${char.level}** (${xpMsg})`
 }
 
 module.exports = {
   getXpRequireForNextStep,
   getData,
+  getPrintableChar
 }
