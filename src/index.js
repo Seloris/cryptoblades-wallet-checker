@@ -19,7 +19,7 @@ client.on('ready', function () {
     client.user.setActivity(`Oracle $${oraclePrice}`, {
       type: 'WATCHING',
     })
-  }, 1000)
+  }, 10000)
 })
 
 const cmd_getWalletsRecap = async (msg) => {
