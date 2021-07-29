@@ -8,9 +8,18 @@ const DB = {
 }
 
 const Discord = require('discord.js')
+const { getOracleCurrentPrice } = require('./web3')
 const client = new Discord.Client()
 client.on('ready', function () {
   console.log('READY')
+
+  const i = 0
+  setInterval(async () => {
+    const oraclePrice = await getOracleCurrentPrice();
+    client.user.setActivity(`Oracle $${oraclePrice}`, {
+      type: 'WATCHING',
+    })
+  }, 1000)
 })
 
 const cmd_getWalletsRecap = async (msg) => {
@@ -89,6 +98,12 @@ client.on('message', async (msg) => {
     if (subCmd == 'setup') {
       const addresses = args.slice(1)
       cmd_setupWallets(msg, addresses)
+    }
+
+    if (subCmd === 'oracle') {
+      const oraclePrice = await getOracleCurrentPrice()
+
+      msg.reply(`$${oraclePrice}`)
     }
 
     if (subCmd == 'recap') {

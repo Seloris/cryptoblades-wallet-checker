@@ -3,10 +3,14 @@ const Web3 = require('web3')
 const conStakingReward = require('../smart/IStakingRewards.json')
 const conStakingToken = require('../smart/IERC20.json')
 const conCryptoBlades = require('../smart/CryptoBlades.json')
+const conOracle = require('../smart/BasicPriceOracle.json')
 const conCharacters = require('../smart/Characters.json')
 const conWeapons = require('../smart/Weapons.json')
 const web3 = new Web3('https://bsc-dataseed.binance.org/')
 
+const { round } = require('./utils')
+
+const oracleAddress = '0x1cbfa0ec28da66896946474b2a93856eb725fbba'
 const stakingRewardAddress = '0xd6b2D8f59Bf30cfE7009fB4fC00a7b13Ca836A2c'
 const stakingTokenAddress = '0x154a9f9cbd3449ad22fdae23044319d6ef2a1fab'
 const mainAddress = '0x39Bea96e13453Ed52A734B6ACEeD4c41F57B2271'
@@ -18,6 +22,9 @@ const StakingReward = new web3.eth.Contract(
   conStakingReward.abi,
   stakingRewardAddress
 )
+
+const Oracle = new web3.eth.Contract(conOracle.abi, oracleAddress)
+
 const StakingToken = new web3.eth.Contract(
   conStakingToken.abi,
   stakingTokenAddress
@@ -59,6 +66,13 @@ const getCharacterLvl = async (charId) =>
 const getCharacterExp = async (charId) =>
   Characters.methods.getXp(charId).call({ from: defaultAddress })
 
+const getOracleCurrentPrice = async (charId) => {
+  const price = await Oracle.methods
+    .currentPrice()
+    .call({ from: defaultAddress })
+  return round(1 / (price / 1000000000000000000), 2)
+}
+
 module.exports = {
   getStakedSkills,
   getStakedRewardsSkills,
@@ -72,4 +86,5 @@ module.exports = {
   getInGameOnlySkills,
   getTotalSkillOwnedBy,
   getCharacterLvl,
+  getOracleCurrentPrice,
 }
