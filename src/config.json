@@ -1,0 +1,13 @@
+{
+	"dbcontext": {
+		"database": "database",
+		"username": "username",
+		"password": "password",
+		"options": {
+			"host": "localhost",
+			"dialect": "sqlite",
+			"logging": false,
+			"storage": "database.sqlite"
+		}
+	}
+}
