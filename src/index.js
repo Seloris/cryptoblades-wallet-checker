@@ -1,124 +1,115 @@
-const {
-  getStakedSkills,
-  getStakedRewardsSkills,
-  getStakedTimeLeft,
-  getAccountCharacters,
-  getCharacterExpRewards,
-  getCharacterExp,
-  getCharacterStamina,
-  getTotalSkillOwnedBy,
-  getInGameOnlySkills,
-  getUnclaimedSkills,
-  getCharacterLvl,
-} = require('./web3')
+const { round, toFrenchDateTime } = require('./utils')
+const { getData, getPrintableChar } = require('./core')
 
-const { getXpRequireForNextStep } = require('./levels')
+const { botToken } = require('../secrets.json')
 
-const { DateTime } = require('luxon')
-const { weiToSkill } = require('./utils')
-
-const addresses = {
-  selo: [],
-  zack: [],
-  bubu: [],
+const DB = {
+  USERS: {},
 }
 
-const toFrenchDateTime = (d) =>
-  DateTime.fromJSDate(d)
-    .setLocale('fr')
-    .toLocaleString(DateTime.DATETIME_SHORT_WITH_SECONDS)
+const Discord = require('discord.js')
+const { getOracleCurrentPrice } = require('./web3')
+const client = new Discord.Client()
+client.on('ready', function () {
+  console.log('READY')
 
-;(async () => {
-  const getPrintableChar = (char) => {
-    const xpRequiredForNextStep = getXpRequireForNextStep(+char.level, 0)
-    const xpLeft = xpRequiredForNextStep.xpRequired - char.expRewards
-
-    const xpMsg =
-      xpLeft <= 0
-        ? `Lv.${xpRequiredForNextStep.nextLevel} available !!`
-        : `Lv.${xpRequiredForNextStep.nextLevel} -> missing ${xpLeft}`
-
-    return `${char.stamina}/200 STA full at ${toFrenchDateTime(
-      char.staminaFullAt
-    )} || Lv.${char.level} || ${xpMsg}`
-  }
-
-  // in game 5.1248
-  // balance 0.2486
-  // staked 1.83
-
-  let sumStaked = 0
-  let sumUnclaimed = 0
-  let sumInGame = 0
-  let sumInWallet = 0
-
-  const dude = 'bubu'
-  const results = await Promise.all(
-    addresses[dude].map(async (wallet) => {
-      // staked
-      const staked = weiToSkill(await getStakedSkills(wallet))
-      const stakedRewards = weiToSkill(await getStakedRewardsSkills(wallet))
-
-      const stakeAvailableInSeconds = parseFloat(
-        await getStakedTimeLeft(wallet)
-      )
-      let stakeAvailableAt = new Date()
-      stakeAvailableAt.setSeconds(
-        stakeAvailableAt.getSeconds() + stakeAvailableInSeconds
-      )
-
-      // chars
-      const charIds = await getAccountCharacters(wallet)
-      const chars = await Promise.all(
-        charIds.map(async (id) => {
-          const level = parseFloat(await getCharacterLvl(id)) + 1
-          const stamina = await getCharacterStamina(id)
-          const expRewards = await getCharacterExpRewards(id)
-          const exp = await getCharacterExp(id)
-          let staminaFullAt = new Date()
-          staminaFullAt.setMinutes(
-            staminaFullAt.getMinutes() + (200 - stamina) * 5
-          )
-
-          return { id, stamina, exp, expRewards, staminaFullAt, level }
-        })
-      )
-
-      // skills
-      const unclaimed = weiToSkill(await getUnclaimedSkills(wallet))
-      const inGame = weiToSkill(await getInGameOnlySkills(wallet))
-      const inWallet =
-        weiToSkill(await getTotalSkillOwnedBy(wallet)) - inGame - unclaimed
-
-      sumStaked += staked + stakedRewards
-      sumUnclaimed += unclaimed
-      sumInGame += inGame
-      sumInWallet += inWallet
-
-      return {
-        address: wallet,
-        unclaimed,
-        inGame,
-        inWallet,
-        staked,
-        stakedRewards,
-        total: staked + stakedRewards + unclaimed + inGame + inWallet,
-        stakeUnlockedAt: toFrenchDateTime(stakeAvailableAt),
-        chars: chars.map((x) => getPrintableChar(x)),
-      }
+  const i = 0
+  setInterval(async () => {
+    const oraclePrice = await getOracleCurrentPrice();
+    client.user.setActivity(`Oracle $${oraclePrice}`, {
+      type: 'WATCHING',
     })
-  )
+  }, 10000)
+})
 
-  console.log(results)
-  console.log('-------------------------------------------')
-  console.log('      Dude => ' + dude)
-  console.log(
-    `     TOTAL => ${sumStaked + sumUnclaimed + sumInGame + sumInWallet}`
-  )
-  console.log('-------------------------------------------')
-  console.log(`    Staked => ${sumStaked}`)
-  console.log(` Unclaimed => ${sumUnclaimed}`)
-  console.log(` In Wallet => ${sumInWallet}`)
-  console.log(`   In Game => ${sumInGame}`)
-  console.log('-------------------------------------------')
-})()
+const cmd_getWalletsRecap = async (msg) => {
+  const { wallets } = DB.USERS[msg.author.id]
+  const datas = await getData(wallets)
+
+  const colors = [7419530, 3447003, 10038562, 15105570, 15844367, 10181046]
+
+  const total = {
+    unclaimed: 0,
+    inGame: 0,
+    inWallet: 0,
+    staked: 0,
+  }
+  // wallets
+  datas.map((data, i) => {
+    const unclaimed = round(data.unclaimed)
+    const inGame = round(data.inGame)
+    const inWallet = round(data.inWallet)
+    const staked = round(data.staked + data.stakedRewards)
+
+    total.unclaimed += unclaimed
+    total.inGame += inGame
+    total.inWallet += inWallet
+    total.staked += staked
+
+    const embed = new Discord.MessageEmbed()
+      // Set the title of the field
+      .setTitle(`Wallet ${i + 1} 🔒 ${toFrenchDateTime(data.stakeUnlockedAt)}`)
+      // Set the color of the embed
+      .setColor(colors[i])
+      .addField('Unclaimed', unclaimed, true)
+      .addField('In Game', inGame, true)
+      .addField('Wallet', inWallet, true)
+      .addField('Staked', staked, true)
+      .setDescription(data.chars.map((x) => getPrintableChar(x)))
+
+    msg.author.send(embed)
+  })
+
+  // recap
+  const embed = new Discord.MessageEmbed()
+    // Set the title of the field
+    .setTitle(`Total 🌑`)
+    // Set the color of the embed
+    .setColor(colors[0])
+    .addField('Unclaimed', round(total.unclaimed), true)
+    .addField('In Game', round(total.inGame), true)
+    .addField('Wallet', round(total.inWallet), true)
+    .addField('Staked', round(total.staked), true)
+
+  msg.author.send(embed)
+}
+
+const cmd_setupWallets = (msg, wallets) => {
+  DB.USERS[msg.author.id] = { wallets }
+  msg.reply(`${wallets.length} wallets setup 👌`)
+}
+
+const prefix = '!'
+
+// Répondre à un message
+client.on('message', async (msg) => {
+  if (msg.author.bot) return
+  if (!msg.content.startsWith(prefix)) return
+
+  const commandBody = msg.content.slice(prefix.length)
+  const args = commandBody.split(' ')
+  const command = args.shift().toLowerCase()
+
+  if (command == 'cb') {
+    const subCmd = args[0]
+
+    console.log(msg.author.id)
+
+    if (subCmd == 'setup') {
+      const addresses = args.slice(1)
+      cmd_setupWallets(msg, addresses)
+    }
+
+    if (subCmd === 'oracle') {
+      const oraclePrice = await getOracleCurrentPrice()
+
+      msg.reply(`$${oraclePrice}`)
+    }
+
+    if (subCmd == 'recap') {
+      await cmd_getWalletsRecap(msg)
+    }
+  }
+})
+
+client.login(botToken)
