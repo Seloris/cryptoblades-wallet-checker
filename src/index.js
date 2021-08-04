@@ -1,7 +1,8 @@
 const { round, toFrenchDateTime } = require('./utils')
 const { getData, getPrintableChar } = require('./core')
 
-const { botToken } = require('../secrets.json')
+const COLORS = [7419530, 3447003, 10038562, 15105570, 15844367, 10181046]
+
 
 const DB = {
   USERS: {},
@@ -13,20 +14,26 @@ const client = new Discord.Client()
 client.on('ready', function () {
   console.log('READY')
 
-  const i = 0
   setInterval(async () => {
-    const oraclePrice = await getOracleCurrentPrice();
-    client.user.setActivity(`Oracle $${oraclePrice}`, {
-      type: 'WATCHING',
-    })
+    try {
+      const oraclePrice = await getOracleCurrentPrice()
+      client.user.setActivity(`Oracle $${oraclePrice}`, {
+        type: 'WATCHING',
+      })
+    } catch (e) {
+      console.error(e)
+    }
   }, 10000)
 })
 
 const cmd_getWalletsRecap = async (msg) => {
-  const { wallets } = DB.USERS[msg.author.id]
-  const datas = await getData(wallets)
+  const user = DB.USERS[msg.author.id];
+  if (!user) {
+    msg.reply('tape !cb setup <wallets> 🤦‍♂️🤦‍♂️🤦‍♂️')
+    return
+  }
 
-  const colors = [7419530, 3447003, 10038562, 15105570, 15844367, 10181046]
+  const datas = await getData(user.wallets)
 
   const total = {
     unclaimed: 0,
@@ -50,7 +57,7 @@ const cmd_getWalletsRecap = async (msg) => {
       // Set the title of the field
       .setTitle(`Wallet ${i + 1} 🔒 ${toFrenchDateTime(data.stakeUnlockedAt)}`)
       // Set the color of the embed
-      .setColor(colors[i])
+      .setColor(COLORS[i])
       .addField('Unclaimed', unclaimed, true)
       .addField('In Game', inGame, true)
       .addField('Wallet', inWallet, true)
@@ -65,7 +72,7 @@ const cmd_getWalletsRecap = async (msg) => {
     // Set the title of the field
     .setTitle(`Total 🌑`)
     // Set the color of the embed
-    .setColor(colors[0])
+    .setColor(COLORS[0])
     .addField('Unclaimed', round(total.unclaimed), true)
     .addField('In Game', round(total.inGame), true)
     .addField('Wallet', round(total.inWallet), true)
@@ -112,4 +119,4 @@ client.on('message', async (msg) => {
   }
 })
 
-client.login(botToken)
+client.login(process.env.BOT_TOKEN)

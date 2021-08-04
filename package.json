@@ -10,9 +10,7 @@
     "sequelize": "^6.6.5",
     "sqlite3": "^5.0.2",
     "ts-loader": "^9.2.4",
-    "web3": "^1.4.0"
-  },
-  "devDependencies": {
+    "web3": "^1.4.0",
     "luxon": "^2.0.1"
   }
 }
